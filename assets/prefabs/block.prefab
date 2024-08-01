@@ -267,9 +267,9 @@
     "_dstBlendFactor": 4,
     "_color": {
       "__type__": "cc.Color",
-      "r": 255,
-      "g": 255,
-      "b": 255,
+      "r": 235,
+      "g": 158,
+      "b": 158,
       "a": 255
     },
     "_spriteFrame": {
@@ -304,6 +304,7 @@
       "__id__": 0
     },
     "fileId": "22mdB5Y5dKsZzxJnvWJ0rD",
+    "instance": null,
     "targetOverrides": null
   }
 ]
