@@ -5,6 +5,7 @@ const { ccclass, property } = _decorator;
 export class game extends Component {
     private _gapSize: number = 20;
     private _blockSize: number;
+    
     @property({ type: Prefab })
     private block: Prefab = null;
     private _scoreLabel: Label;
