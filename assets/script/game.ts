@@ -59,14 +59,30 @@ export class Game extends Component {
     }
 
     /**
-     * 旋转二维数组
+     * 翻转二维数组
      * @param blocks 二维数组
      */
-    rotateBlocks(blocks: Array<Array<Node>>, direction) {
+    reversal() {
+        let rowSize = this.blocks.length
+        let colSize = this.blocks[0].length
+        for (let index = 0; index < rowSize; index++) {
+
+        }
+    }
+
+    moveLeft() {
 
     }
 
-    move() {
+    moveRight() {
+
+    }
+
+    moveTop() {
+        
+    }
+
+    moveBottom() {
 
     }
 
