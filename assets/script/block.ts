@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Label, Sprite } from 'cc';
+import { _decorator, Color, Component, Label, log, Sprite } from 'cc';
 const { ccclass, property } = _decorator;
 
 
@@ -16,13 +16,8 @@ export class Block extends Component {
     }
 
     setNumber(num: number) {
-        this.numLabel.node.active = true;
-        if (num == undefined) {
-            this.numLabel.node.active = false;
-            return;
-        } else if (num == 0) {
-            this.numLabel.node.active = false;
-        }
+        if (num == undefined) num = 0;
+        this.numLabel.node.active = (num == 0) ? false : true;
         this.numLabel.string = num.toString();
         this.node.getComponent(Sprite).color = colors.searchColor(num);
     }

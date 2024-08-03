@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, director, EventTouch, Input, instantiate, Label, log, Node, Prefab, Size, UIRenderer, UITransform, Vec2, view } from 'cc';
+import { _decorator, Component, tween, EventTouch, Input, instantiate, Label, log, Node, Prefab, Size, UITransform, Vec2, view, Vec3, color } from 'cc';
 import { Block } from './block';
 const { ccclass, property } = _decorator;
 
@@ -6,132 +6,181 @@ const { ccclass, property } = _decorator;
 export class Game extends Component {
     private level: number = 4;
 
-    private _gapSize: number = 20;
-    private _blockSize: number;
+    private tweenDuration: number = 0.1;
+
+    private gapSize: number = 20;
 
     @property({ type: Prefab })
-    private block: Prefab = null;
+    private blockPrefab: Prefab = null;
 
     @property({ type: Label })
     private scoreLabel: Label;
 
-    private _score: number;
+    private score: number;
 
-    private blocks: Array<Array<Node>>;
+    private blockSize: number = (view.getVisibleSize().width - this.gapSize * 5) / 4;
+
+    private bottom: number = -view.getVisibleSize().height / 2;
+
+    private left: number = -view.getVisibleSize().width / 2;
+
+    private blockList: Array<Array<Node>>;
 
     start() {
-        this.draw();
-        this.init();
-        this.addTouchHandler();
+        let zeros = this.init();
+        this.randomFillZeroBlock(zeros);
+        this.activeTouchHandler(true);
     }
 
-    update(deltaTime: number) {
-
-    }
-
-    draw() {
-        let width: number = view.getVisibleSize().width;
-        let height: number = view.getVisibleSize().height;
-        let bottom = -height / 2
-        let left = -width / 2
-        this._blockSize = (width - this._gapSize * 5) / 4;
-
-        this.blocks = new Array<Array<Node>>(this.level);
+    private init() {
+        let zeros = new Array<Node>();
+        this.blockList = new Array<Array<Node>>(this.level);
         for (let row = 0; row < this.level; row++) {
-            if (this.blocks[row] == undefined) {
-                this.blocks[row] = new Array<Node>(4);
+            if (this.blockList[row] == undefined) {
+                this.blockList[row] = new Array<Node>(4);
             }
             for (let col = 0; col < this.level; col++) {
-                this.blocks[row][col] = instantiate(this.block);
-                let blockUI = this.blocks[row][col].getComponent(UITransform)
-                let blockSize = new Size(this._blockSize, this._blockSize);
-                blockUI.setContentSize(blockSize)
-
-                let x = this._gapSize * (col + 1) + this._blockSize * col + left + this._blockSize / 2;
-                let y = this._gapSize * (row + 1) + this._blockSize * row + bottom + this._blockSize / 2;
-
-                this.blocks[row][col].setPosition(x, y);
-                this.node.addChild(this.blocks[row][col]);
-                let block = this.blocks[row][col].getComponent(Block);
-                block.setNumber(0);
+                let block = this.buildBlock()
+                let x = this.gapSize * (col + 1) + this.blockSize * col + this.left + this.blockSize / 2;
+                let y = this.gapSize * (row + 1) + this.blockSize * row + this.bottom + this.blockSize / 2;
+                block.setPosition(x, y);
+                this.node.addChild(block);
+                zeros.push(block);
+                this.blockList[row][col] = block
             }
         }
+        return zeros;
     }
 
-    /**
-     * 翻转二维数组
-     * @param blocks 二维数组
-     */
-    reversal() {
-        let rowSize = this.blocks.length
-        let colSize = this.blocks[0].length
-        for (let index = 0; index < rowSize; index++) {
-
-        }
+    private doMove(block: Node, position: Vec3, callback: Function) {
+        log("block: %s move to %s", block.getPosition(), position)
+        tween(block.getPosition()).to(this.tweenDuration, position, {
+            onUpdate: (target: Vec3) => {
+                block.setPosition(target);
+            }
+        }).call(callback).start();
     }
 
-    moveLeft() {
+    private moveBottom() {
+        this.activeTouchHandler(false)
+        let moved: boolean = false
 
-    }
+        for (let col = 0; col < this.level; col++) {
+            for (let row = 0; row < this.level; row++) {
+                if (this.blockList[row][col].getComponent(Block).getNumber() != 0) {
+                    let blow = row - 1;
+                    let curr = row;
+                    while (blow >= 0) {
+                        if (this.blockList[blow][col].getComponent(Block).getNumber() == this.blockList[curr][col].getComponent(Block).getNumber()
+                            || this.blockList[blow][col].getComponent(Block).getNumber() == 0) {
 
-    moveRight() {
+                            let oldNode = this.blockList[curr][col]
+                            let newNode = this.blockList[blow][col]
+                            // 当前节点直接下移
+                            let oldPosition = oldNode.getPosition();
+                            let newPosition = newNode.getPosition();
 
-    }
+                            this.node.removeChild(newNode);
 
-    moveTop() {
-        
-    }
+                            this.doMove(oldNode, newPosition, () => {
+                                oldNode.getComponent(Block).setNumber(newNode.getComponent(Block).getNumber()
+                                    + oldNode.getComponent(Block).getNumber())
+                            });
+                            this.blockList[blow][col] = oldNode;
 
-    moveBottom() {
 
-    }
+                            // 新建组件填充当前组件位置
+                            this.blockList[curr][col] = this.buildBlock()
+                            this.blockList[curr][col].setPosition(oldPosition)
+                            this.node.addChild(this.blockList[curr][col]);
 
-    addTouchHandler() {
-        let startPoint: Vec2;
-        this.node.on(Input.EventType.TOUCH_START, (event: EventTouch) => {
-            startPoint = event.getLocation()
-        }, this)
-        this.node.on(Input.EventType.TOUCH_END, (event: EventTouch) => {
-            let endPoint = event.getLocation()
-            let moveDistance = Vec2.distance(endPoint, startPoint);
-
-            // TODO: 优化防抖
-            if (moveDistance > 50) {
-                if (Math.abs(startPoint.y - endPoint.y) < 50) {
-                    if (startPoint.x > endPoint.x) {
-                        log("向左")
-                    } else if (startPoint.x < endPoint.x) {
-                        log("向右")
-                    }
-                } else if (Math.abs(startPoint.x - endPoint.x) < 50) {
-                    if (startPoint.y > endPoint.y) {
-                        log("向下")
-                    } else if (startPoint.y < endPoint.y) {
-                        log("向上")
+                            curr = blow;
+                            moved = true;
+                            blow--;
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
-        }, this)
+        }
+        if (moved) {
+            log("moved:" + moved)
+            let zeros = this.collectZeroBlock()
+            if (zeros.length != 0) {
+                this.randomFillZeroBlock(zeros)
+            }
+        }
+        this.activeTouchHandler(true)
     }
 
-    init() {
-        let initNumbers = [2, 4]
-        let initBlock: number = Math.round(Math.random() * (this.level - 1));
-        if (initBlock == 0) initBlock++;
-        for (let i = 0; i < initBlock; i++) {
-            let x = Math.round(Math.random() * (this.level - 1));
-            let y = Math.round(Math.random() * (this.level - 1));
-            while (this.blocks[x][y].getComponent(Block).getNumber() != 0) {
-                x = Math.round(Math.random() * this.level);
-                y = Math.round(Math.random() * this.level);
-            }
-
-            let number = initNumbers[Math.round(Math.random() * (initNumbers.length - 1))];
-            this.blocks[x][y].getComponent(Block).setNumber(number)
+    private activeTouchHandler(active: boolean) {
+        let startPoint: Vec2;
+        let endPoint: Vec2;
+        if (active) {
+            this.node.on(Input.EventType.TOUCH_START, (event: EventTouch) => {
+                startPoint = event.getLocation()
+            }, this)
+            this.node.on(Input.EventType.TOUCH_END, (event: EventTouch) => {
+                endPoint = event.getLocation()
+                let moveDistance = Vec2.distance(endPoint, startPoint);
+                // TODO: 优化防抖
+                if (moveDistance > 50) {
+                    if (Math.abs(startPoint.y - endPoint.y) < 50) {
+                        if (startPoint.x > endPoint.x) {
+                            log("向左")
+                        } else if (startPoint.x < endPoint.x) {
+                            log("向右")
+                        }
+                    } else if (Math.abs(startPoint.x - endPoint.x) < 50) {
+                        if (startPoint.y > endPoint.y) {
+                            this.moveBottom()
+                        } else if (startPoint.y < endPoint.y) {
+                            log("向上")
+                        }
+                    }
+                }
+            }, this)
+        } else {
+            this.node.off(Input.EventType.TOUCH_START);
+            this.node.off(Input.EventType.TOUCH_END);
         }
     }
-}
 
-enum Direction {
-    LEFT, RIGHT
+    private collectZeroBlock(): Array<Node> {
+        let zeros = new Array<Node>();
+        for (let i = 0; i < this.level; i++) {
+            for (let j = 0; j < this.level; j++) {
+                let currBlock = this.blockList[i][j]
+                if (currBlock.getComponent(Block).getNumber() == 0) {
+                    zeros.push(currBlock)
+                }
+            }
+        }
+        return zeros
+    }
+
+    private randomFillZeroBlock(zeros: Array<Node>) {
+        let initNumbers = [2, 4]
+        let initBlock: number = Math.round(Math.random() * (this.level - 2)) + 1;
+        log("will create %d new block", initBlock);
+        for (let i = 0; i < initBlock; i++) {
+            let zeroNodeIndex = Math.round(Math.random() * (zeros.length - 1))
+            let newNode = zeros[zeroNodeIndex];
+            let number = initNumbers[Math.round(Math.random() * (initNumbers.length - 1))];
+            log("create new block: %d", number);
+            log("create new block position:%s", newNode.getPosition());
+            newNode.getComponent(Block).setNumber(number)
+            zeros.splice(zeroNodeIndex, 1);
+        }
+    }
+
+    private buildBlock(): Node {
+        let block = instantiate(this.blockPrefab);
+        let blockUI = block.getComponent(UITransform);
+        let size = new Size(this.blockSize, this.blockSize);
+        blockUI.setContentSize(size);
+        block.getComponent(Block).setNumber(0);
+        return block;
+    }
 }
